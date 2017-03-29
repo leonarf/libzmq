@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2007-2015 Contributors as noted in the AUTHORS file
+    Copyright (c) 2007-2016 Contributors as noted in the AUTHORS file
 
     This file is part of libzmq, the ZeroMQ core engine in C++.
 
@@ -27,13 +27,9 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "platform.hpp"
+#include "precompiled.hpp"
 
 #ifdef HAVE_LIBGSSAPI_KRB5
-
-#ifdef ZMQ_HAVE_WINDOWS
-#include "windows.hpp"
-#endif
 
 #include <string.h>
 #include <string>
@@ -80,10 +76,12 @@ int zmq::gssapi_mechanism_base_t::encode_message (msg_t *msg_)
     uint8_t flags = 0;
     if (msg_->flags () & msg_t::more)
         flags |= 0x01;
-    if (msg ->flags () & msg_t::command)
+    if (msg_->flags () & msg_t::command)
         flags |= 0x02;
 
     uint8_t *plaintext_buffer = static_cast <uint8_t *>(malloc(msg_->size ()+1));
+    alloc_assert(plaintext_buffer);
+
     plaintext_buffer[0] = flags;
     memcpy (plaintext_buffer+1, msg_->data(), msg_->size());
 
@@ -153,8 +151,9 @@ int zmq::gssapi_mechanism_base_t::decode_message (msg_t *msg_)
     // TODO: instead of malloc/memcpy, can we just do: wrapped.value = ptr;
     const size_t alloc_length = wrapped.length? wrapped.length: 1;
     wrapped.value = static_cast <char *> (malloc (alloc_length));
+    alloc_assert (wrapped.value);
+
     if (wrapped.length) {
-        alloc_assert (wrapped.value);
         memcpy(wrapped.value, ptr, wrapped.length);
         ptr += wrapped.length;
         bytes_left -= wrapped.length;
@@ -178,14 +177,14 @@ int zmq::gssapi_mechanism_base_t::decode_message (msg_t *msg_)
 
     const uint8_t flags = static_cast <char *> (plaintext.value)[0];
     if (flags & 0x01)
-	    msg_->set_flags (msg_t::more);
+        msg_->set_flags (msg_t::more);
     if (flags & 0x02)
         msg_->set_flags (msg_t::command);
 
     memcpy (msg_->data (), static_cast <char *> (plaintext.value)+1, plaintext.length-1);
 
     gss_release_buffer (&min_stat, &plaintext);
-    gss_release_buffer (&min_stat, &wrapped);
+    free(wrapped.value);
 
     if (bytes_left > 0) {
         errno = EPROTO;
@@ -251,9 +250,11 @@ int zmq::gssapi_mechanism_base_t::process_initiate (msg_t *msg_, void **token_va
         errno = EPROTO;
         return -1;
     }
+
     *token_value_ = static_cast <char *> (malloc (token_length_ ? token_length_ : 1));
+    alloc_assert (*token_value_);
+
     if (token_length_) {
-        alloc_assert (*token_value_);
         memcpy(*token_value_, ptr, token_length_);
         ptr += token_length_;
         bytes_left -= token_length_;

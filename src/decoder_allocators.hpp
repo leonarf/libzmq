@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2007-2015 Contributors as noted in the AUTHORS file
+    Copyright (c) 2007-2016 Contributors as noted in the AUTHORS file
 
     This file is part of libzmq, the ZeroMQ core engine in C++.
 
@@ -34,6 +34,7 @@
 #include <cstdlib>
 
 #include "atomic_counter.hpp"
+#include "msg.hpp"
 #include "err.hpp"
 
 namespace zmq
@@ -80,7 +81,7 @@ namespace zmq
         c_single_allocator& operator = (c_single_allocator const&);
     };
 
-    // This allocater allocates a reference counted buffer which is used by v2_decoder_t
+    // This allocator allocates a reference counted buffer which is used by v2_decoder_t
     // to use zero-copy msg::init_data to create messages with memory from this buffer as
     // data storage.
     //
@@ -102,7 +103,7 @@ namespace zmq
         // Allocate a new buffer
         //
         // This releases the current buffer to be bound to the lifetime of the messages
-        // created on this bufer.
+        // created on this buffer.
         unsigned char* allocate ();
 
         // force deallocation of buffer.
@@ -132,16 +133,21 @@ namespace zmq
             bufsize = new_size;
         }
 
-        zmq::atomic_counter_t* create_refcnt ()
+        zmq::msg_t::content_t* provide_content ()
         {
-            return msg_refcnt++;
+            return msg_content;
+        }
+
+        void advance_content ()
+        {
+            msg_content++;
         }
 
     private:
         unsigned char* buf;
         std::size_t bufsize;
         std::size_t max_size;
-        zmq::atomic_counter_t* msg_refcnt;
+        zmq::msg_t::content_t* msg_content;
         std::size_t maxCounters;
     };
 }

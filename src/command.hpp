@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2007-2015 Contributors as noted in the AUTHORS file
+    Copyright (c) 2007-2016 Contributors as noted in the AUTHORS file
 
     This file is part of libzmq, the ZeroMQ core engine in C++.
 
@@ -64,6 +64,7 @@ namespace zmq
             hiccup,
             pipe_term,
             pipe_term_ack,
+            pipe_hwm,
             term_req,
             term,
             term_ack,
@@ -128,6 +129,12 @@ namespace zmq
             //  Pipe writer acknowledges pipe_term command.
             struct {
             } pipe_term_ack;
+
+            //  Sent by one of pipe to another part for modify hwm
+            struct {
+                int inhwm;
+                int outhwm;
+            } pipe_hwm;
 
             //  Sent by I/O object ot the socket to request the shutdown of
             //  the I/O object.

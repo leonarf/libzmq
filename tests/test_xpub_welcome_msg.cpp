@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2007-2015 Contributors as noted in the AUTHORS file
+    Copyright (c) 2007-2016 Contributors as noted in the AUTHORS file
 
     This file is part of libzmq, the ZeroMQ core engine in C++.
 
@@ -41,20 +41,20 @@ int main (void)
     int rc = zmq_bind (pub, "inproc://soname");
     assert (rc == 0);
 
-    //  set pub socket options    
-	rc = zmq_setsockopt(pub, ZMQ_XPUB_WELCOME_MSG, "W", 1);
-    assert (rc == 0); 
+    //  set pub socket options
+    rc = zmq_setsockopt(pub, ZMQ_XPUB_WELCOME_MSG, "W", 1);
+    assert (rc == 0);
 
     //  Create a subscriber
     void *sub = zmq_socket (ctx, ZMQ_SUB);
-	
+
     // Subscribe to the welcome message
     rc = zmq_setsockopt(sub, ZMQ_SUBSCRIBE, "W", 1);
     assert(rc == 0);
 
     assert (sub);
     rc = zmq_connect (sub, "inproc://soname");
-    assert (rc == 0);	
+    assert (rc == 0);
 
     char buffer[2];
 
@@ -63,11 +63,11 @@ int main (void)
     assert(rc == 2);
     assert(buffer[0] == 1);
     assert(buffer[1] == 'W');
-  			
+
     // Receive the welcome message
     rc = zmq_recv(sub, buffer, 1, 0);
     assert(rc == 1);
-    assert(buffer[0] == 'W');	
+    assert(buffer[0] == 'W');
 
     //  Clean up.
     rc = zmq_close (pub);

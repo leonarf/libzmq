@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2007-2015 Contributors as noted in the AUTHORS file
+    Copyright (c) 2007-2016 Contributors as noted in the AUTHORS file
 
     This file is part of libzmq, the ZeroMQ core engine in C++.
 
@@ -105,7 +105,7 @@ int main (void)
     assert (rc == 0);
     rc = zmq_connect (client, "tcp://127.0.0.1:9998");
     assert (rc == 0);
-    bounce (client, server);
+    bounce (server, client);
 
     //  Close client and server
     close_zero_linger (client);
@@ -116,6 +116,10 @@ int main (void)
     if (event == ZMQ_EVENT_CONNECT_DELAYED)
         event = get_monitor_event (client_mon, NULL, NULL);
     assert (event == ZMQ_EVENT_CONNECTED);
+#ifdef ZMQ_BUILD_DRAFT_API
+    event = get_monitor_event (client_mon, NULL, NULL);
+    assert (event == ZMQ_EVENT_HANDSHAKE_SUCCEED);
+#endif
     event = get_monitor_event (client_mon, NULL, NULL);
     assert (event == ZMQ_EVENT_MONITOR_STOPPED);
 
@@ -124,10 +128,19 @@ int main (void)
     assert (event == ZMQ_EVENT_LISTENING);
     event = get_monitor_event (server_mon, NULL, NULL);
     assert (event == ZMQ_EVENT_ACCEPTED);
+#ifdef ZMQ_BUILD_DRAFT_API
     event = get_monitor_event (server_mon, NULL, NULL);
-    assert (event == ZMQ_EVENT_CLOSED);
+    assert (event == ZMQ_EVENT_HANDSHAKE_SUCCEED);
+#endif
     event = get_monitor_event (server_mon, NULL, NULL);
-    assert (event == ZMQ_EVENT_MONITOR_STOPPED);
+    //  Sometimes the server sees the client closing before it gets closed.
+    if (event != ZMQ_EVENT_DISCONNECTED) {
+      assert (event == ZMQ_EVENT_CLOSED);
+      event = get_monitor_event (server_mon, NULL, NULL);
+    }
+    if (event != ZMQ_EVENT_DISCONNECTED) {
+      assert (event == ZMQ_EVENT_MONITOR_STOPPED);
+    }
     
     //  Close down the sockets
     close_zero_linger (client_mon);

@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2007-2015 Contributors as noted in the AUTHORS file
+    Copyright (c) 2007-2016 Contributors as noted in the AUTHORS file
 
     This file is part of libzmq, the ZeroMQ core engine in C++.
 
@@ -27,6 +27,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "precompiled.hpp"
+#include "macros.hpp"
 #include "client.hpp"
 #include "err.hpp"
 #include "msg.hpp"
@@ -43,10 +45,9 @@ zmq::client_t::~client_t ()
 
 void zmq::client_t::xattach_pipe (pipe_t *pipe_, bool subscribe_to_all_)
 {
-    // subscribe_to_all_ is unused
-    (void) subscribe_to_all_;
+    LIBZMQ_UNUSED (subscribe_to_all_);
 
-    zmq_assert (pipe_);    
+    zmq_assert (pipe_);
 
     fq.attach (pipe_);
     lb.attach (pipe_);
@@ -54,28 +55,31 @@ void zmq::client_t::xattach_pipe (pipe_t *pipe_, bool subscribe_to_all_)
 
 int zmq::client_t::xsend (msg_t *msg_)
 {
-    zmq_assert(!(msg_->flags () & msg_t::more));
-
+    //  CLIENT sockets do not allow multipart data (ZMQ_SNDMORE)
+    if (msg_->flags () & msg_t::more) {
+        errno = EINVAL;
+        return -1;
+    }
     return lb.sendpipe (msg_, NULL);
 }
 
 int zmq::client_t::xrecv (msg_t *msg_)
-{        
+{
     int rc = fq.recvpipe (msg_, NULL);
 
     // Drop any messages with more flag
     while (rc == 0 && msg_->flags () & msg_t::more) {
 
         // drop all frames of the current multi-frame message
-        rc = fq.recvpipe (msg_, NULL);            
-        
+        rc = fq.recvpipe (msg_, NULL);
+
         while (rc == 0 && msg_->flags () & msg_t::more)
-            rc = fq.recvpipe (msg_, NULL);            
+            rc = fq.recvpipe (msg_, NULL);
 
         // get the new message
-        if (rc == 0)            
+        if (rc == 0)
             rc = fq.recvpipe (msg_, NULL);
-    }    
+    }
 
     return rc;
 }

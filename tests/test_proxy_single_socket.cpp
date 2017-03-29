@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2007-2015 Contributors as noted in the AUTHORS file
+    Copyright (c) 2007-2016 Contributors as noted in the AUTHORS file
 
     This file is part of libzmq, the ZeroMQ core engine in C++.
 
@@ -28,7 +28,6 @@
 */
 
 #include "testutil.hpp"
-#include "../include/zmq_utils.h"
 
 
 
@@ -52,7 +51,8 @@ server_task (void *ctx)
     assert (rc == 0);
 
     // Use rep as both frontend and backend
-    zmq_proxy_steerable (rep, rep, NULL, control);
+    rc = zmq_proxy_steerable (rep, rep, NULL, control);
+    assert (rc == 0);
 
     rc = zmq_close (rep);
     assert (rc == 0);

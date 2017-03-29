@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2007-2015 Contributors as noted in the AUTHORS file
+    Copyright (c) 2007-2016 Contributors as noted in the AUTHORS file
 
     This file is part of libzmq, the ZeroMQ core engine in C++.
 
@@ -27,13 +27,9 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "platform.hpp"
+#include "precompiled.hpp"
 
 #if defined ZMQ_HAVE_OPENPGM
-
-#ifdef ZMQ_HAVE_WINDOWS
-#include "windows.hpp"
-#endif
 
 #include <stdlib.h>
 
@@ -44,7 +40,7 @@
 #include "wire.hpp"
 #include "stdint.hpp"
 
-zmq::pgm_sender_t::pgm_sender_t (io_thread_t *parent_, 
+zmq::pgm_sender_t::pgm_sender_t (io_thread_t *parent_,
       const options_t &options_) :
     io_object_t (parent_),
     has_tx_timer (false),
@@ -77,7 +73,7 @@ int zmq::pgm_sender_t::init (bool udp_encapsulation_, const char *network_)
 
 void zmq::pgm_sender_t::plug (io_thread_t *io_thread_, session_base_t *session_)
 {
-    //  Alocate 2 fds for PGM socket.
+    //  Allocate 2 fds for PGM socket.
     fd_t downlink_socket_fd = retired_fd;
     fd_t uplink_socket_fd = retired_fd;
     fd_t rdata_notify_fd = retired_fd;
@@ -91,11 +87,11 @@ void zmq::pgm_sender_t::plug (io_thread_t *io_thread_, session_base_t *session_)
 
     handle = add_fd (downlink_socket_fd);
     uplink_handle = add_fd (uplink_socket_fd);
-    rdata_notify_handle = add_fd (rdata_notify_fd);   
+    rdata_notify_handle = add_fd (rdata_notify_fd);
     pending_notify_handle = add_fd (pending_notify_fd);
 
     //  Set POLLIN. We wont never want to stop polling for uplink = we never
-    //  want to stop porocess NAKs.
+    //  want to stop processing NAKs.
     set_pollin (uplink_handle);
     set_pollin (rdata_notify_handle);
     set_pollin (pending_notify_handle);
@@ -169,11 +165,11 @@ void zmq::pgm_sender_t::in_event ()
 
 void zmq::pgm_sender_t::out_event ()
 {
-    //  POLLOUT event from send socket. If write buffer is empty, 
+    //  POLLOUT event from send socket. If write buffer is empty,
     //  try to read new data from the encoder.
     if (write_size == 0) {
 
-        //  First two bytes (sizeof uint16_t) are used to store message 
+        //  First two bytes (sizeof uint16_t) are used to store message
         //  offset in following steps. Note that by passing our buffer to
         //  the get data function we prevent it from returning its own buffer.
         unsigned char *bf = out_buffer + sizeof (uint16_t);

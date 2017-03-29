@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2007-2015 Contributors as noted in the AUTHORS file
+    Copyright (c) 2007-2016 Contributors as noted in the AUTHORS file
 
     This file is part of libzmq, the ZeroMQ core engine in C++.
 
@@ -27,22 +27,16 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "precompiled.hpp"
 #include <stdlib.h>
 #include <string.h>
 #include <cmath>
-
-#include "platform.hpp"
-#ifdef ZMQ_HAVE_WINDOWS
-#include "windows.hpp"
-#endif
 
 #include "v2_protocol.hpp"
 #include "v2_decoder.hpp"
 #include "likely.hpp"
 #include "wire.hpp"
 #include "err.hpp"
-
-
 
 zmq::v2_decoder_t::v2_decoder_t (size_t bufsize_, int64_t maxmsgsize_) :
     shared_message_memory_allocator( bufsize_),
@@ -108,10 +102,8 @@ int zmq::v2_decoder_t::size_ready(uint64_t msg_size, unsigned char const* read_p
         return -1;
     }
 
-    //  in_progress is initialised at this point so in theory we should
-    //  close it before calling init_size, however, it's a 0-byte
-    //  message and thus we can treat it as uninitialised.
-    int rc = -1;
+    int rc = in_progress.close();
+    assert(rc == 0);
 
     // the current message can exceed the current buffer. We have to copy the buffer
     // data into a new message and complete it in the next receive.
@@ -119,7 +111,7 @@ int zmq::v2_decoder_t::size_ready(uint64_t msg_size, unsigned char const* read_p
     if (unlikely ((unsigned char*)read_pos + msg_size > (data() + size())))
     {
         // a new message has started, but the size would exceed the pre-allocated arena
-        // this happens everytime when a message does not fit completely into the buffer
+        // this happens every time when a message does not fit completely into the buffer
         rc = in_progress.init_size (static_cast <size_t> (msg_size));
     }
     else
@@ -127,13 +119,14 @@ int zmq::v2_decoder_t::size_ready(uint64_t msg_size, unsigned char const* read_p
         // construct message using n bytes from the buffer as storage
         // increase buffer ref count
         // if the message will be a large message, pass a valid refcnt memory location as well
-        rc = in_progress.init( (unsigned char*)read_pos, msg_size,
-                               shared_message_memory_allocator::call_dec_ref, buffer(),
-                               create_refcnt() );
+        rc = in_progress.init ((unsigned char *) read_pos, static_cast <size_t> (msg_size),
+                                shared_message_memory_allocator::call_dec_ref, buffer(),
+                                provide_content ());
 
         // For small messages, data has been copied and refcount does not have to be increased
         if (in_progress.is_zcmsg())
         {
+            advance_content();
             inc_ref();
         }
     }

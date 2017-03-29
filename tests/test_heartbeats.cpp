@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2007-2015 Contributors as noted in the AUTHORS file
+    Copyright (c) 2007-2016 Contributors as noted in the AUTHORS file
 
     This file is part of 0MQ.
 
@@ -24,10 +24,7 @@
 #   include <stdexcept>
 #   define close closesocket
 #else
-#   include <sys/socket.h>
-#   include <netinet/in.h>
 #   include <arpa/inet.h>
-#   include <unistd.h>
 #endif
 
 //  Read one event off the monitor socket; return value and address
@@ -42,7 +39,7 @@ get_monitor_event (void *monitor)
         zmq_msg_t msg;
         zmq_msg_init (&msg);
         if (zmq_msg_recv (&msg, monitor, ZMQ_DONTWAIT) == -1) {
-            msleep(150);
+            msleep (SETTLE_TIME);
             continue;           //  Interruped, presumably
         }
         assert (zmq_msg_more (&msg));
@@ -63,6 +60,18 @@ get_monitor_event (void *monitor)
 }
 
 static void
+recv_with_retry (int fd, char *buffer, int bytes) {
+  int received = 0;
+    while (true) {
+      int rc = recv(fd, buffer + received, bytes - received, 0);
+      assert(rc > 0);
+      received += rc;
+      assert(received <= bytes);
+      if (received == bytes) break;
+    }
+}
+
+static void
 mock_handshake (int fd) {
     const uint8_t zmtp_greeting[33] = { 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0x7f, 3, 0, 'N', 'U', 'L', 'L', 0 };
     char buffer[128];
@@ -72,8 +81,7 @@ mock_handshake (int fd) {
     int rc = send(fd, buffer, 64, 0);
     assert(rc == 64);
 
-    rc = recv(fd, buffer, 64, 0);
-    assert(rc == 64);
+    recv_with_retry(fd, buffer, 64);
 
     const uint8_t zmtp_ready[43] = {
         4, 41, 5, 'R', 'E', 'A', 'D', 'Y', 11, 'S', 'o', 'c', 'k', 'e', 't', '-', 'T', 'y', 'p', 'e',
@@ -86,8 +94,7 @@ mock_handshake (int fd) {
     rc = send(fd, buffer, 43, 0);
     assert(rc == 43);
 
-    rc = recv(fd, buffer, 43, 0);
-    assert(rc == 43);
+    recv_with_retry(fd, buffer, 43);
 }
 
 static void
@@ -174,8 +181,12 @@ test_heartbeat_timeout (void)
     int s;
 
     ip4addr.sin_family = AF_INET;
-    ip4addr.sin_port = htons(5556);
+    ip4addr.sin_port = htons (5556);
+#if defined (ZMQ_HAVE_WINDOWS) && (_WIN32_WINNT < 0x0600)
+    ip4addr.sin_addr.s_addr = inet_addr ("127.0.0.1");
+#else
     inet_pton(AF_INET, "127.0.0.1", &ip4addr.sin_addr);
+#endif
 
     s = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
     rc = connect (s, (struct sockaddr*) &ip4addr, sizeof ip4addr);
@@ -240,7 +251,7 @@ test_heartbeat_ttl (void)
     rc = get_monitor_event(server_mon);
     assert(rc == ZMQ_EVENT_ACCEPTED);
 
-    msleep(100);
+    msleep (SETTLE_TIME);
 
     // We should have been disconnected
     rc = get_monitor_event(server_mon);
@@ -280,7 +291,7 @@ test_heartbeat_notimeout (int is_curve)
     rc = zmq_connect(client, "tcp://127.0.0.1:5556");
 
     // Give it a sec to connect and handshake
-    msleep(100);
+    msleep (SETTLE_TIME);
 
     // By now everything should report as connected
     rc = get_monitor_event(server_mon);
